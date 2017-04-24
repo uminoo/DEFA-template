@@ -1,0 +1,30 @@
+/* --------------- mixins */
+.placeholder (@rules) {
+    &::-webkit-input-placeholder {
+        @rules();
+    }
+    &::-moz-placeholder {
+        @rules();
+    }
+    &:-ms-input-placeholder {
+        @rules();
+    }
+    &:-moz-placeholder {
+        @rules();
+    }
+}
+.desktop (@rules) {
+    @media (min-width: 1000px) {
+        @rules();
+    }
+}
+.tablet (@rules) {
+    @media (min-width: 768px) and (max-width: 999px) {
+        @rules();
+    }
+}
+.mobile (@rules) {
+    @media (max-width: 767px) {
+        @rules();
+    }
+}
