@@ -6,17 +6,28 @@ var gulp = require('gulp'),
     svgo = require('gulp-svgo'),
     svgSprite = require('gulp-svg-sprite'),
     less = require('gulp-less'),
-    iconfont = require('gulp-iconfont'),
-    iconfontCss = require('gulp-iconfont-css'),
     favicons = require('gulp-favicons'),
     imagemin = require('gulp-imagemin'),
     fontgen = require('gulp-fontgen'),
-    plumber = require('gulp-plumber'),
     pug = require('gulp-pug2'),
     prettify = require('gulp-html-prettify'),
     runSequence = require('run-sequence'),
     replace = require('gulp-replace'),
     clean = require('gulp-clean');
+
+//on error
+
+function log(error) {
+    console.log([
+        '',
+        "----------ERROR MESSAGE START----------".bold.red.underline,
+        ("[" + error.name + " in " + error.plugin + "]").red.bold.inverse,
+        error.message,
+        "----------ERROR MESSAGE END----------".bold.red.underline,
+        ''
+    ].join('\n'));
+    this.end();
+}
 
 //browser-sync
 
@@ -40,7 +51,6 @@ gulp.task('cleaner', function() {
 
 gulp.task('favicon', function() {
     return gulp.src('src/favicon/*.png')
-        .pipe(plumber())
         .pipe(favicons({
             appName: '',
             appDescription: '',
@@ -50,8 +60,7 @@ gulp.task('favicon', function() {
             display: "standalone",
             orientation: "portrait",
             version: 1.0
-        }))
-        .pipe(plumber.stop())
+        })).on('error', log)
         .pipe(gulp.dest('public/favicon'));
 });
 
@@ -59,42 +68,16 @@ gulp.task('favicon', function() {
 
 gulp.task('fontgen', function() {
     return gulp.src("src/fonts/*.{ttf,otf}")
-    .pipe(plumber())
     .pipe(fontgen({
         dest: 'public/fonts'
-    }))
-    .pipe(plumber.stop())
+    })).on('error', log)
 });
 
-//iconfont
-
-var runTimestamp = Math.round(Date.now()/1000);
-
-gulp.task('icon-font', function() {
-    return gulp.src(['src/icons/font-icons/*.svg'])
-    .pipe(gulp.dest('public/font-icons/data-icons'))
-    .pipe(plumber())
-    .pipe(iconfontCss({
-      fontName: 'icons',
-      path: 'src/assets/less/templates/icons.less',
-      targetPath: '../less/include/icons.less',
-      fontPath: '../fonts/'
-    }))
-    .pipe(iconfont({
-        fontName: 'icons',
-        prependUnicode: true,
-        formats: ['ttf', 'eot', 'woff', 'woff2', 'svg'],
-        timestamp: runTimestamp,
-    }))
-    .pipe(plumber.stop())
-    .pipe(gulp.dest('public/font-icons'))
-});
 
 //svg-sprite & optimazer
 
 gulp.task('svg-sprite', function () {
     return gulp.src('src/icons/*.svg')
-        .pipe(plumber())
         .pipe(gulp.dest('public/icons/data-icons'))
         .pipe(svgo({
             plugins: [
@@ -112,7 +95,7 @@ gulp.task('svg-sprite', function () {
                 {convertTransform: true},
                 {removeStyleElement: true}
             ]
-        }))
+        })).on('error', log)
         .pipe(replace('#000', 'currentColor'))
         .pipe(svgSprite({
             mode: 'symbols',
@@ -130,34 +113,27 @@ gulp.task('svg-sprite', function () {
                 namespaceIDs: false,
                 dimensionAttributes: false
             }
-        }))
-        .pipe(plumber.stop())
+        })).on('error', log)
         .pipe(gulp.dest('public/icons'))
-});
-
-
-//compile less
-
-gulp.task('compile-less', function () {
-    return gulp.src('src/less/*.less')
-        .pipe(plumber())
-        .pipe(less())
-        .pipe(plumber.stop())
-        .pipe(gulp.dest('public/style'))
 });
 
 //build-less & autoprefixer
 
 gulp.task('build-less', function () {
     return gulp.src('src/less/**/*.less')
-        .pipe(plumber())
+        .pipe(gulp.dest('public/style'))
+});
+
+//compile less
+
+gulp.task('compile-less', function (done) {
+    return gulp.src('public/style/*.less')
+        .pipe(less()).on('error', log)
         .pipe(autoprefixer({
             browsers: ['last 2 version', 'safari >= 5', 'firefox >= 20', 'ie >= 9', 'opera >= 12', 'ios >= 6', 'android >= 4'],
             cascade: false
-        }))
-        .pipe(plumber.stop())
+        })).on('error', log)
         .pipe(gulp.dest('public/style'))
-        .pipe(browserSync.stream())
 });
 
 //build-script
@@ -165,40 +141,32 @@ gulp.task('build-less', function () {
 gulp.task('build-script', function () {
     return gulp.src('src/script/**/*.js')
         .pipe(gulp.dest('public/script'))
-        .pipe(browserSync.stream())
 });
 
 //build-html
 
 gulp.task('build-html', function() {
     return gulp.src('src/pug/*.pug')
-        .pipe(plumber())
         .pipe(pug({
             pretty: true
-        }))
-        .pipe(prettify({indent_char: ' ', indent_size: 4}))
-        .pipe(plumber.stop())
+        })).on('error', log)
+        .pipe(prettify({indent_char: ' ', indent_size: 4})).on('error', log)
         .pipe(gulp.dest('public'))
-        .pipe(browserSync.stream())
 })
 
 //build-images & optimaze
 
 gulp.task('build-images', function () {
-  gulp.src('src/images/**/*.*')
-    .pipe(plumber())
-    .pipe(imagemin())
-    .pipe(plumber.stop())
-    .pipe(gulp.dest('public/images'))
+    return gulp.src('src/images/**/*.*')
+        .pipe(imagemin()).on('error', log)
+        .pipe(gulp.dest('public/images'))
 });
 
 //build-upload
 
 gulp.task('build-upload', function () {
     return gulp.src('src/upload/**/*.*')
-        .pipe(plumber())
-        .pipe(imagemin())
-        .pipe(plumber.stop())
+        .pipe(imagemin()).on('error', log)
         .pipe(gulp.dest('public/upload'))
 });
 
@@ -208,8 +176,9 @@ gulp.task('build-upload', function () {
 
 gulp.task('watch-less', function () {
     gulp.watch('src/less/**/*.less', function (event, cb) {
-        gulp.start('compile-less')
-            .start('build-less')
+        runSequence('build-less', 'compile-less', function() {
+            browserSync.reload();
+        })
     });
 });
 
@@ -217,7 +186,9 @@ gulp.task('watch-less', function () {
 
 gulp.task('watch-html', function () {
     gulp.watch('src/pug/**/*.pug', function (event, cb) {
-        gulp.start('build-html')
+        runSequence('build-html', function() {
+            browserSync.reload();
+        })
     });
 });
 
@@ -225,7 +196,9 @@ gulp.task('watch-html', function () {
 
 gulp.task('watch-script', function () {
     gulp.watch('src/script/**/*.js', function (event, cb) {
-        gulp.start('build-script')
+        runSequence('build-script', function() {
+            browserSync.reload();
+        })
     });
 });
 
@@ -233,7 +206,9 @@ gulp.task('watch-script', function () {
 
 gulp.task('watch-images', function () {
     gulp.watch('src/images/**/*.*', function (event, cb) {
-        gulp.start('build-images')
+        runSequence('build-images', function() {
+            browserSync.reload();
+        })
     });
 });
 
@@ -241,7 +216,19 @@ gulp.task('watch-images', function () {
 
 gulp.task('watch-upload', function () {
     gulp.watch('src/upload/**/*.*', function (event, cb) {
-        gulp.start('build-upload')
+        runSequence('build-upload', function() {
+            browserSync.reload();
+        })
+    });
+});
+
+//watch-icons
+
+gulp.task('watch-icons', function () {
+    gulp.watch('src/icons/*.svg', function (event, cb) {
+        runSequence('svg-sprite', function() {
+            browserSync.reload();
+        })
     });
 });
 
@@ -252,10 +239,9 @@ gulp.task('build', function(callback) {
         'cleaner',
         'favicon',
         'fontgen',
-        'icon-font',
         'svg-sprite',
-        'compile-less',
         'build-less',
+        'compile-less',
         'build-script',
         'build-html',
         'build-images',
@@ -264,6 +250,7 @@ gulp.task('build', function(callback) {
         'watch-html',
         'watch-script',
         'watch-images',
+        'watch-icons',
         'watch-upload',
         'browsersync'
     )
