@@ -26,7 +26,6 @@ function log(error) {
         "----------ERROR MESSAGE END----------".bold.red.underline,
         ''
     ].join('\n'));
-    this.end();
 }
 
 //browser-sync
@@ -128,7 +127,10 @@ gulp.task('build-less', function () {
 
 gulp.task('compile-less', function (done) {
     return gulp.src('public/style/*.less')
-        .pipe(less()).on('error', log)
+        .pipe(less()).on('error', function(error) {
+            log(error);
+            done();
+        })
         .pipe(autoprefixer({
             browsers: ['last 2 version', 'safari >= 5', 'firefox >= 20', 'ie >= 9', 'opera >= 12', 'ios >= 6', 'android >= 4'],
             cascade: false
@@ -145,11 +147,14 @@ gulp.task('build-script', function () {
 
 //build-html
 
-gulp.task('build-html', function() {
+gulp.task('build-html', function(done) {
     return gulp.src('src/pug/*.pug')
         .pipe(pug({
             pretty: true
-        })).on('error', log)
+        })).on('error', function(error) {
+            log(error);
+            done();
+        })
         .pipe(prettify({indent_char: ' ', indent_size: 4})).on('error', log)
         .pipe(gulp.dest('public'))
 })
